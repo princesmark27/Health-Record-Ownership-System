@@ -109,3 +109,40 @@
         (ok true)
     )
 )
+
+
+
+(define-map record-history
+    {record-id: uint, version: uint}
+    {
+        hash: (string-ascii 64),
+        modified-by: principal,
+        timestamp: uint
+    }
+)
+
+(define-data-var version-nonce uint u0)
+
+(define-public (get-record-history (record-id uint))
+    (ok (map-get? record-history {record-id: record-id, version: (var-get version-nonce)}))
+)
+
+(define-public (update-record-with-history (record-id uint) (new-hash (string-ascii 64)))
+    (let (
+        (record (unwrap! (map-get? patient-records record-id) (err err-not-found)))
+        (new-version (+ (var-get version-nonce) u1))
+    )
+        (try! (check-access record-id tx-sender))
+        (map-set record-history
+            {record-id: record-id, version: new-version}
+            {
+                hash: new-hash,
+                modified-by: tx-sender,
+                timestamp: stacks-block-height
+            }
+        )
+        (var-set version-nonce new-version)
+        (try! (update-record record-id new-hash))
+        (ok true)
+    )
+)
