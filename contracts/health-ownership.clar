@@ -146,3 +146,65 @@
         (ok true)
     )
 )
+
+(define-map scheduled-access
+    {record-id: uint, accessor: principal}
+    {
+        start-block: uint,
+        end-block: uint,
+        access-type: (string-ascii 20),
+        recurring: bool,
+        interval: uint
+    }
+)
+
+(define-constant err-invalid-schedule (err u106))
+
+(define-read-only (get-active-schedules (record-id uint) (accessor principal))
+    (let ((current-height stacks-block-height))
+        (match (map-get? scheduled-access {record-id: record-id, accessor: accessor})
+            schedule (ok schedule)
+            (err err-not-found)
+        )
+    )
+)
+
+(define-public (schedule-access 
+    (record-id uint) 
+    (accessor principal) 
+    (start-block uint) 
+    (duration uint)
+    (access-type (string-ascii 20))
+    (recurring bool)
+    (interval uint)
+)
+    (let ((record (unwrap! (map-get? patient-records record-id) (err err-not-found))))
+        ;; (asserts! (is-eq tx-sender (get patient record)) err-not-authorized)
+        ;; (asserts! (> start-block stacks-block-height) err-invalid-schedule)
+        (map-set scheduled-access
+            {record-id: record-id, accessor: accessor}
+            {
+                start-block: start-block,
+                end-block: (+ start-block duration),
+                access-type: access-type,
+                recurring: recurring,
+                interval: interval
+            }
+        )
+        (ok true)
+    )
+)
+
+(define-public (extend-scheduled-access (record-id uint) (accessor principal) (new-end-block uint))
+    (let (
+        (schedule (unwrap! (map-get? scheduled-access {record-id: record-id, accessor: accessor}) (err err-not-found)))
+        (record (unwrap! (map-get? patient-records record-id) (err err-not-found)))
+    )
+        ;; (asserts! (is-eq tx-sender (get patient record)) err-not-authorized)
+        (map-set scheduled-access
+            {record-id: record-id, accessor: accessor}
+            (merge schedule {end-block: new-end-block})
+        )
+        (ok true)
+    )
+)
