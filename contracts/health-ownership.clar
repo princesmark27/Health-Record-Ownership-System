@@ -208,3 +208,16 @@
         (ok true)
     )
 )
+
+(define-read-only (check-access-with-emergency (record-id uint) (accessor principal))
+    (let ((record (unwrap! (map-get? patient-records record-id) (err err-not-found))))
+        (if (or
+            (is-eq accessor (get patient record))
+            (is-some (map-get? access-grants { record-id: record-id, accessor: accessor }))
+            (is-ok (contract-call? .emergency-access check-emergency-access (get patient record) accessor))
+        )
+            (ok true)
+            (err err-invalid-access)
+        )
+    )
+)
